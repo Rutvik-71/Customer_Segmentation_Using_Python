@@ -1,0 +1,114 @@
+#first imported the libraries that are needed
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+
+#Read the csv file
+#Initial Data Inspections for getting the info,structure about the data
+df = pd.read_csv("customer_150_rows.csv")
+df.head()
+df.tail()
+df.describe()
+df.info()
+
+#Check for duplicates and null values
+print(df.isnull().sum())
+print(df.duplicated().sum())
+df['CustomerID'].nunique()
+
+#drop duplicates if exists
+print(df.drop_duplicates(inplace = True))
+
+#rename columns for better understandings & data cleaning 
+df.columns = [
+    "CustomerID",
+    "Gender",
+    "Age",
+    "Annual_Income",
+    "Spending_Score"
+]
+df[(df['Age'] <= 0) | (df['Spending_Score'] > 100)]
+
+#remove identified columns 
+df_model = df.drop("CustomerID", axis=1)
+print(df_model)
+
+#select features for clustering
+X = df[['Annual_Income', 'Spending_Score']]
+print(X)
+
+#EDA -EXPLORATORY DATA ANALYSIS ---> Univariate Analysis
+# we check for Age distribution
+plt.hist(df['Age'], bins=20)
+plt.title("Age Distribution")
+plt.xlabel("Age")
+plt.ylabel("Count of Customers")
+plt.show()
+
+#we check for income distribution
+plt.hist(df['Annual_Income'], bins=20)
+plt.title("Annual Income Distribution")
+plt.xlabel("Income")
+plt.ylabel("count")
+plt.show()
+
+#Spending score distribution
+plt.hist(df['Spending_Score'], bins=20)
+plt.title("Spending Score Distribution")
+plt.xlabel("Spending Score (1–100)")
+plt.ylabel("Number of Customers")
+plt.show()
+
+#Bivariate Analysis (MOST IMPORTANT)
+plt.scatter(df['Annual_Income'], df['Spending_Score'])
+plt.xlabel("Annual Income (k$)")
+plt.ylabel("Spending Score")
+plt.title("Income vs Spending")
+plt.grid()
+plt.show()
+
+#Feature Scaling (IMPORTANT FOR K-MEANS)
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+#Find Optimal Number of Clusters (Elbow Method)
+wcss = []
+
+for i in range(1, 11):
+    kmeans = KMeans(n_clusters=i, random_state=42)
+    kmeans.fit(X_scaled)
+    wcss.append(kmeans.inertia_)
+    
+#Apply K-Means Clustering
+kmeans = KMeans(n_clusters=5, random_state=42)
+df['Cluster'] = kmeans.fit_predict(X_scaled)
+df.head()
+
+
+#Visualize Customer Segments (RESUME GOLD)
+plt.figure(figsize=(8,6))
+sns.scatterplot(
+    x=df['Annual_Income'],
+    y=df['Spending_Score'],
+    hue=df['Cluster'],
+    palette='Set1'
+)
+plt.xlabel("Annual Income (k$)")
+plt.ylabel("Spending Score")
+plt.title("Customer Segmentation")
+plt.legend(title="Cluster")
+plt.show()
+
+#Cluster Profiling (BUSINESS INSIGHTS)
+df.groupby('Cluster')[['Age','Annual_Income','Spending_Score']].mean()
+
+
+#Save Final Dataset
+df.to_csv("segmented_customers.csv", index=False)
